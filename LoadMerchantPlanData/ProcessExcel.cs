@@ -70,7 +70,7 @@ namespace LoadMerchantPlanData
                         SaveUsingOracleBulkCopy("STG_Merchant_Plan", dt, con2, loaddate);
 
 
-                        string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + file.Name;
+                        string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
                         //moving file
                         File.Move(file.FullName, moveTo);
                         Logger.LogExec("End File Name :" + file.Name);
@@ -120,6 +120,14 @@ namespace LoadMerchantPlanData
             }
         }
 
+        public static string AppendTimeStamp(string fileName)
+        {
+            return string.Concat(
+                Path.GetFileNameWithoutExtension(fileName),
+                DateTime.Now.ToString("yyyyMMddHHmmssfff"),
+                Path.GetExtension(fileName)
+                );
+        }
 
         public void SaveUsingOracleBulkCopy(string destTableName, DataTable dt, OleDbConnection con2, string loaddate)
         {
