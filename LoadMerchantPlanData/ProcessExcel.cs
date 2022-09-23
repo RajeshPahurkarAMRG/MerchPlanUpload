@@ -37,7 +37,7 @@ namespace LoadMerchantPlanData
                     {
                         Logger.LogExec("Started deleting existing LE data-" + file.FullName);
                         con2.Open();
-                        OleDbCommand com = new OleDbCommand("usp_deleteSTGMerchantPlanLE", con2);
+                        OleDbCommand com = new OleDbCommand("usp_deleteSTGEcomPlanLE", con2);
                         com.CommandType = CommandType.StoredProcedure;
                         OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
                         sqlParam.Value = loaddate;
@@ -67,7 +67,7 @@ namespace LoadMerchantPlanData
 
                         //going to insert this data into the oracale DB
 
-                        SaveUsingOracleBulkCopy("STG_Merchant_Plan", dt, con2, loaddate);
+                        SaveUsingOracleBulkCopy("STG_ECOM_Plan", dt, con2, loaddate);
 
 
                         string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
@@ -86,16 +86,16 @@ namespace LoadMerchantPlanData
                 //calling final proc for moving data stg table to main table
                 try
                 {
-                    Logger.LogExec("Started calling final proc for moving data stg table to main table :usp_LoadEcomMerchantPlan");
+                    Logger.LogExec("Started calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
                     con2.Open();
-                    OleDbCommand com = new OleDbCommand("usp_LoadEcomMerchantPlan", con2);
+                    OleDbCommand com = new OleDbCommand("usp_LoadEcomPlan", con2);
                     com.CommandType = CommandType.StoredProcedure;
                     OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
                     sqlParam.Value = loaddate;
 
                     com.ExecuteNonQuery();
                     con2.Close();
-                    Logger.LogExec("End calling final proc for moving data stg table to main table :usp_LoadEcomMerchantPlan");
+                    Logger.LogExec("End calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
 
                 }
                 catch (Exception ex)
