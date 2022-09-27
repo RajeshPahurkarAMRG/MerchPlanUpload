@@ -1,11 +1,8 @@
-﻿using log4net;
+﻿using LoadMerchantPlanData;
+using log4net;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace LoadMerchantPlanData
 {
@@ -27,13 +24,13 @@ namespace LoadMerchantPlanData
             SQLLogger.WriteStart();
         }
 
-        public static void LogExec(string Logs)
+        public static void LogInsert(string Logs)
         {
             string module = "Main";
-            int loglevel = 1;
+            int loglevel = 2;
             string stext = Logs;
             log.Info(stext);
-            SQLLogger.WriteExecLog(Logs);
+            SQLLogger.WriteLog(module, Logs, loglevel);
         }
 
         public static void LogEnd()

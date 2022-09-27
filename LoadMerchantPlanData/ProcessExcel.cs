@@ -21,7 +21,7 @@ namespace LoadMerchantPlanData
                 //if (ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
                 //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "Start Plan and LE Program ", "Plan and LE Program Status");
 
-
+                var finalproccall = false;
                 string folderpath = ConfigurationManager.AppSettings["LocalFolderDirectoryPath"].ToString();
                 DirectoryInfo d = new DirectoryInfo(folderpath);
 
@@ -29,13 +29,16 @@ namespace LoadMerchantPlanData
                 var loaddate = DateTime.Now.ToString("MM/dd/yyyy");
                 //for truncate data using loaddate
                 if (d.GetFiles("*.xlsx")?.Length > 0)
-                    Logger.LogExec("Total Numer of file for loading-" + d.GetFiles("*.xlsx")?.Length);
-                Logger.LogExec("Started Files Loop");
+                {
+                    finalproccall = true;
+                    Logger.LogInsert("Total Numer of file for loading-" + d.GetFiles("*.xlsx")?.Length);
+                }
+                Logger.LogInsert("Started Files Loop");
                 foreach (FileInfo file in d.GetFiles("*.xlsx"))
                 {
                     try
                     {
-                        Logger.LogExec("Started deleting existing LE data-" + file.FullName);
+                        Logger.LogInsert("Started deleting existing LE data-" + file.FullName);
                         con2.Open();
                         OleDbCommand com = new OleDbCommand("usp_deleteSTGEcomPlanLE", con2);
                         com.CommandType = CommandType.StoredProcedure;
@@ -43,7 +46,7 @@ namespace LoadMerchantPlanData
                         sqlParam.Value = loaddate;
                         com.ExecuteNonQuery();
                         con2.Close();
-                        Logger.LogExec("End deleting existing LE data-" + file.FullName);
+                        Logger.LogInsert("End deleting existing LE data-" + file.FullName);
                         break;
 
 
@@ -59,7 +62,7 @@ namespace LoadMerchantPlanData
                 {
                     try
                     {
-                        Logger.LogExec("Started File Name :" + file.Name);
+                        Logger.LogInsert("Started File Name :" + file.Name);
                         // Load the Excel file
                         System.Data.DataTable dt = new System.Data.DataTable();
 
@@ -73,7 +76,7 @@ namespace LoadMerchantPlanData
                         string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
                         //moving file
                         File.Move(file.FullName, moveTo);
-                        Logger.LogExec("End File Name :" + file.Name);
+                        Logger.LogInsert("End File Name :" + file.Name);
                     }
                     catch (Exception ex)
                     {
@@ -81,29 +84,31 @@ namespace LoadMerchantPlanData
                         Logger.LogError("main", ex);
                     }
                 }
-                Logger.LogExec("End Files Loop");
-
-                //calling final proc for moving data stg table to main table
-                try
+                Logger.LogInsert("End Files Loop");
+                if (finalproccall)
                 {
-                    Logger.LogExec("Started calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
-                    con2.Open();
-                    OleDbCommand com = new OleDbCommand("usp_LoadEcomPlan", con2);
-                    com.CommandType = CommandType.StoredProcedure;
-                    OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
-                    sqlParam.Value = loaddate;
+                    //calling final proc for moving data stg table to main table
+                    try
+                    {
+                        Logger.LogInsert("Started calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
+                        con2.Open();
+                        OleDbCommand com = new OleDbCommand("usp_LoadEcomPlan", con2);
+                        com.CommandType = CommandType.StoredProcedure;
+                        OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
+                        sqlParam.Value = loaddate;
 
-                    com.ExecuteNonQuery();
-                    con2.Close();
-                    Logger.LogExec("End calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
+                        com.ExecuteNonQuery();
+                        con2.Close();
+                        Logger.LogInsert("End calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
 
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        Logger.LogError("main", ex);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                    Logger.LogError("main", ex);
-                }
-                Logger.LogExec("End Plan and LE Program ");
+                Logger.LogInsert("End Plan and LE Program ");
                 //if (ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
                 //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "End Plan and LE Program ", "Plan and LE Program Status");
             }
