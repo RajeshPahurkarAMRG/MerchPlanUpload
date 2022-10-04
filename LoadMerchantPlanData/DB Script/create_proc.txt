@@ -1,13 +1,13 @@
-﻿CREATE OR REPLACE PROCEDURE TAXK00.usp_LoadEcomMerchantPlan
+﻿CREATE OR REPLACE PROCEDURE TAXK00.usp_LoadEcomPlan
 (loaddate in VARCHAR2)
  as
 begin
 
-  delete from TAXK00.ECOM_MERCHANT_PLAN where PLN_VRSN in 
-  ( select distinct t.PLN_VRSN from  TAXK00.STG_MERCHANT_PLAN t where to_date(t.DAY,'MM/DD/YYYY')=to_date(loaddate,'MM/DD/YYYY'));
+  delete from TAXK00.ECOM_PLAN where PLN_VRSN in 
+  ( select distinct t.PLN_VRSN from  TAXK00.STG_ECOM_PLAN t where to_date(t.DAY,'MM/DD/YYYY')=to_date(loaddate,'MM/DD/YYYY'));
 
 
-  INSERT INTO TAXK00.ECOM_MERCHANT_PLAN ( PLN_VRSN, DAY, SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,DEMAND_PLAN,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,LOAD_DATE)
+  INSERT INTO TAXK00.ECOM_PLAN ( PLN_VRSN, DAY, SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,DEMAND_PLAN,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,LOAD_DATE,NET_AUR_PLAN)
   select stg.PLN_VRSN, to_date(stg.DAY,'MM/DD/YYYY'),
   cast(nvl(stg.SLS_RTL,'0') as number),
   cast(nvl(stg.ITEM_MRGN,'0') as number),
@@ -16,10 +16,13 @@ begin
   cast(nvl(stg.SHIPPED_ORDERS,'0') as number),
   cast(nvl(stg.SHIPPED_UNIT_VOLUME,'0') as number),
   stg.LOCATION,
-  to_date(stg.LOAD_DATE,'MM/DD/YYYY') 
-  from TAXK00.STG_MERCHANT_PLAN stg where to_date(stg.LOAD_DATE,'MM/DD/YYYY')=to_date(loaddate,'MM/DD/YYYY');
+  to_date(stg.LOAD_DATE,'MM/DD/YYYY'),
+  cast(nvl(stg.NET_AUR_PLAN,'0') as number)
+  from TAXK00.STG_ECOM_PLAN stg where to_date(stg.LOAD_DATE,'MM/DD/YYYY')=to_date(loaddate,'MM/DD/YYYY');
 
-end usp_LoadEcomMerchantPlan;
+end usp_LoadEcomPlan;
+
+
 
 
 

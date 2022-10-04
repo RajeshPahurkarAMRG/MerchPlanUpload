@@ -140,14 +140,14 @@ namespace LoadMerchantPlanData
             {
 
 
-                string sqlStatement = "INSERT INTO " + destTableName + " (DAY,DEMAND_PLAN,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,PLN_VRSN,LOAD_DATE) VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}')";
+                string sqlStatement = "INSERT INTO " + destTableName + " (DAY,DEMAND_PLAN,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,PLN_VRSN,LOAD_DATE,NET_AUR_PLAN) VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}')";
 
                 foreach (DataRow row in dt.Rows)
                 {
                     if (row[0] != "" && row[0] != null)
                     {
                         StringBuilder sqlBatch = new StringBuilder();
-                        sqlBatch.AppendLine(string.Format(sqlStatement, Convert.ToDateTime(row[0]).ToString("MM/dd/yyyy"), row[1]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[2]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[3]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[4]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("%", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[5]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[6]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[7], row[8], loaddate));
+                        sqlBatch.AppendLine(string.Format(sqlStatement, Convert.ToDateTime(row[0]).ToString("MM/dd/yyyy"), row[1]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[2]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[3]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[4]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("%", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[5]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[6]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[7], row[8], loaddate, row[9]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim()));
                         con2.Open();
                         OleDbCommand cmd1 = new OleDbCommand(sqlBatch.ToString(), con2);
                         cmd1.ExecuteNonQuery();
@@ -265,6 +265,7 @@ namespace LoadMerchantPlanData
             list.Add("SHIPPED_UNIT_VOLUME");
             list.Add("LOCATION");
             list.Add("PLN_VRSN");
+            list.Add("NET_AUR_PLAN");
             String[] str = list.ToArray();
 
             //Instance reference for Excel Application
