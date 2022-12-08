@@ -33,7 +33,7 @@ namespace LoadMerchantPlanData
                     finalproccall = true;
                     Logger.LogInsert("Total Numer of file for loading-" + d.GetFiles("*.xlsx")?.Length);
                 }
-                Logger.LogInsert("Started Files Loop");
+                // Logger.LogInsert("Started Files Loop");
                 foreach (FileInfo file in d.GetFiles("*.xlsx"))
                 {
                     try
@@ -57,61 +57,68 @@ namespace LoadMerchantPlanData
                         Logger.LogError("main", ex);
                     }
                 }
-
-                foreach (FileInfo file in d.GetFiles("*.xlsx"))
+                if (d.GetFiles("*.xlsx")?.Length > 0)
                 {
-                    try
+                    foreach (FileInfo file in d.GetFiles("*.xlsx"))
                     {
-                        Logger.LogInsert("Started File Name :" + file.Name);
-                        // Load the Excel file
-                        System.Data.DataTable dt = new System.Data.DataTable();
+                        try
+                        {
+                            Logger.LogInsert("Started File Name :" + file.Name);
+                            // Load the Excel file
+                            System.Data.DataTable dt = new System.Data.DataTable();
 
-                        dt = ImportExceltoDatatable(file.FullName, "Plan & LE", true);
+                            dt = ImportExceltoDatatable(file.FullName, "Plan & LE", true);
 
-                        //going to insert this data into the oracale DB
+                            //going to insert this data into the oracale DB
 
-                        SaveUsingOracleBulkCopy("STG_ECOM_Plan", dt, con2, loaddate);
+                            SaveUsingOracleBulkCopy("STG_ECOM_Plan", dt, con2, loaddate);
 
 
-                        string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
-                        //moving file
-                        File.Move(file.FullName, moveTo);
-                        Logger.LogInsert("End File Name :" + file.Name);
+                            string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
+                            //moving file
+                            File.Move(file.FullName, moveTo);
+                            Logger.LogInsert("End File Name :" + file.Name);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            Logger.LogError("main", ex);
+                        }
                     }
-                    catch (Exception ex)
+                    Logger.LogInsert("End Files Loop");
+                    if (finalproccall)
                     {
-                        Console.WriteLine(ex.Message);
-                        Logger.LogError("main", ex);
+                        //calling final proc for moving data stg table to main table
+                        try
+                        {
+                            Logger.LogInsert("Started calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
+                            con2.Open();
+                            OleDbCommand com = new OleDbCommand("usp_LoadEcomPlan", con2);
+                            com.CommandType = CommandType.StoredProcedure;
+                            OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
+                            sqlParam.Value = loaddate;
+
+                            com.ExecuteNonQuery();
+                            con2.Close();
+                            Logger.LogInsert("End calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
+
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                            Logger.LogError("main", ex);
+                        }
                     }
+                    Logger.LogInsert("End Plan and LE Program ");
+                    //if (ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
+                    //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "End Plan and LE Program ", "Plan and LE Program Status");
                 }
-                Logger.LogInsert("End Files Loop");
-                if (finalproccall)
+                else
                 {
-                    //calling final proc for moving data stg table to main table
-                    try
-                    {
-                        Logger.LogInsert("Started calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
-                        con2.Open();
-                        OleDbCommand com = new OleDbCommand("usp_LoadEcomPlan", con2);
-                        com.CommandType = CommandType.StoredProcedure;
-                        OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
-                        sqlParam.Value = loaddate;
-
-                        com.ExecuteNonQuery();
-                        con2.Close();
-                        Logger.LogInsert("End calling final proc for moving data stg table to main table :usp_LoadEcomPlan");
-
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                        Logger.LogError("main", ex);
-                    }
+                    Logger.LogInsert("No File In Folder");
                 }
-                Logger.LogInsert("End Plan and LE Program ");
-                //if (ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
-                //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "End Plan and LE Program ", "Plan and LE Program Status");
             }
+
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
