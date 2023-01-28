@@ -4,20 +4,25 @@ using System.Configuration;
 using System.Data;
 using System.Data.OleDb;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using NPOI.HSSF.UserModel;
+using NPOI.SS.UserModel;
 
 namespace LoadMerchantPlanData
 {
     public class ProcessExcel
     {
-
+        DataTable Tabla = null;
         SendSMTPMail mail = new SendSMTPMail();
 
+        string[] arrHeader = { "date", "demand plan", "net sales plan", "item margin $ plan", "item margin % plan", "orders shipped", "units shipped", "version" };
+        string[] arrSheetName = { "dkny", "klp", "wl", "bass", "am" };
         public void process()
         {
-            try
-            {
+            //try
+            //{
                 //if (ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
                 //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "Start Plan and LE Program ", "Plan and LE Program Status");
 
@@ -27,63 +32,62 @@ namespace LoadMerchantPlanData
 
                 OleDbConnection con2 = new OleDbConnection(ConfigurationManager.AppSettings["connectionstring"].ToString());
                 var loaddate = DateTime.Now.ToString("MM/dd/yyyy");
+
+                FileInfo[] allFiles = d.GetFiles("Ecom Daily Plan*.xlsx");
+
                 //for truncate data using loaddate
                 if (d.GetFiles("*.xlsx")?.Length > 0)
                 {
                     finalproccall = true;
-                    Logger.LogInsert("Total Numer of file for loading-" + d.GetFiles("*.xlsx")?.Length);
+                    Logger.LogInsert("Total Numer of file for loading-" + allFiles.Length);
                 }
                 // Logger.LogInsert("Started Files Loop");
-                foreach (FileInfo file in d.GetFiles("*.xlsx"))
+                foreach (FileInfo file in allFiles)
                 {
-                    try
-                    {
-                        Logger.LogInsert("Started deleting existing LE data-" + file.FullName);
-                        con2.Open();
-                        OleDbCommand com = new OleDbCommand("usp_deleteSTGEcomPlanLE", con2);
-                        com.CommandType = CommandType.StoredProcedure;
-                        OleDbParameter sqlParam = com.Parameters.Add("loaddate", OleDbType.VarChar);
-                        sqlParam.Value = loaddate;
-                        com.ExecuteNonQuery();
-                        con2.Close();
-                        Logger.LogInsert("End deleting existing LE data-" + file.FullName);
-                        break;
+                //try
+                //{
+                Logger.LogInsert("Started deleting existing LE data-" + file.FullName);
+                con2.Open();
+                OleDbCommand com = new OleDbCommand("truncate table stg_ecom_plan", con2);             
+                com.ExecuteNonQuery();
+                con2.Close();
+                Logger.LogInsert("End deleting existing LE data-" + file.FullName);
+                //    break;
 
 
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(ex.Message);
-                        Logger.LogError("main", ex);
-                    }
-                }
-                if (d.GetFiles("*.xlsx")?.Length > 0)
+                //}
+                //catch (Exception ex)
+                //{
+                //    Console.WriteLine(ex.Message);
+                //    Logger.LogError("main", ex);
+                //}
+            }
+                if (allFiles.Length > 0)
                 {
-                    foreach (FileInfo file in d.GetFiles("*.xlsx"))
+                    foreach (FileInfo file in allFiles)
                     {
-                        try
-                        {
+                        //try
+                        //{
                             Logger.LogInsert("Started File Name :" + file.Name);
                             // Load the Excel file
                             System.Data.DataTable dt = new System.Data.DataTable();
 
-                            dt = ImportExceltoDatatable(file.FullName, "Plan & LE", true);
+                            Excel_To_DataTable(file.FullName);
+                            //dt = ImportExceltoDatatable(file.FullName, "Plan & LE", true,"");
 
                             //going to insert this data into the oracale DB
+                            
 
-                            SaveUsingOracleBulkCopy("STG_ECOM_Plan", dt, con2, loaddate);
-
-
-                            string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
-                            //moving file
-                            File.Move(file.FullName, moveTo);
-                            Logger.LogInsert("End File Name :" + file.Name);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine(ex.Message);
-                            Logger.LogError("main", ex);
-                        }
+                            //string moveTo = ConfigurationManager.AppSettings["ArchiveLocalFolderDirectoryPath"].ToString() + AppendTimeStamp(file.Name);
+                            ////moving file
+                            //File.Move(file.FullName, moveTo);
+                            //Logger.LogInsert("End File Name :" + file.Name);
+                        //}
+                        //catch (Exception ex)
+                        //{
+                        //    Console.WriteLine(ex.Message);
+                        //    Logger.LogError("main", ex);
+                        //}
                     }
                     Logger.LogInsert("End Files Loop");
                     if (finalproccall)
@@ -117,19 +121,19 @@ namespace LoadMerchantPlanData
                 {
                     Logger.LogInsert("No File In Folder");
                 }
-            }
+            //}
 
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                Logger.LogError("main", ex);
-            }
-            finally
-            {
-                //for sent mail after all execution done
-                // if (failFilenames != "" && ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
-                //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "Below files are fails-" + failFilenames, "Plan and LE Fails File Status");
-            }
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine(ex.Message);
+            //    Logger.LogError("main", ex);
+            //}
+            //finally
+            //{
+            //    //for sent mail after all execution done
+            //    // if (failFilenames != "" && ConfigurationManager.AppSettings["IsMailSend"].ToString().Equals("true"))
+            //    //    mail.Dosend(ConfigurationManager.AppSettings["To"].ToString(), "Below files are fails-" + failFilenames, "Plan and LE Fails File Status");
+            //}
         }
 
         public static string AppendTimeStamp(string fileName)
@@ -141,229 +145,674 @@ namespace LoadMerchantPlanData
                 );
         }
 
-        public void SaveUsingOracleBulkCopy(string destTableName, DataTable dt, OleDbConnection con2, string loaddate)
+        
+        public void ImportExceltoDatatableNPOI(string path)
         {
-            try
+            IWorkbook book;
+            FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            //book = new (fs);
+
+        }
+
+       
+        private void Excel_To_DataTable(string Excelfilename)
+        {
+            
+            
+            if (System.IO.File.Exists(Excelfilename))
             {
+                IWorkbook workbook = null;
+                ISheet worksheet = null;
+                string first_sheet_name = "";
 
+                first_sheet_name = "MyTable";
+                Tabla = new DataTable(first_sheet_name);
+                Tabla.Rows.Clear();
+                Tabla.Columns.Clear();
 
-                string sqlStatement = "INSERT INTO " + destTableName + " (DAY,DEMAND_PLAN,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,PLN_VRSN,LOAD_DATE,NET_AUR_PLAN) VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}')";
+                Tabla.Columns.Add(new DataColumn("DATE", typeof(DateTime)));
+                Tabla.Columns.Add(new DataColumn("DEMAND_PLAN", typeof(int)));
+                Tabla.Columns.Add(new DataColumn("SLS_RTL", typeof(int)));
+                Tabla.Columns.Add(new DataColumn("ITEM_MRGN", typeof(int)));
+                Tabla.Columns.Add(new DataColumn("ITEM_MRGN_PCT_TY", typeof(decimal)));
+                Tabla.Columns.Add(new DataColumn("SHIPPED_ORDERS", typeof(int)));
+                Tabla.Columns.Add(new DataColumn("SHIPPED_UNIT_VOLUME", typeof(int)));
+                Tabla.Columns.Add(new DataColumn("PLN_VRSN", typeof(String)));
+                Tabla.Columns.Add(new DataColumn("LOCATION", typeof(string)));
+                Tabla.Columns.Add(new DataColumn("LOAD_DATE", typeof(DateTime)));
 
-                foreach (DataRow row in dt.Rows)
+                using (FileStream FS = new FileStream(Excelfilename, FileMode.Open, FileAccess.Read))
                 {
-                    if (row[0] != "" && row[0] != null)
+                    workbook = WorkbookFactory.Create(FS);
+
                     {
-                        StringBuilder sqlBatch = new StringBuilder();
-                        sqlBatch.AppendLine(string.Format(sqlStatement, Convert.ToDateTime(row[0]).ToString("MM/dd/yyyy"), row[1]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[2]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[3]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[4]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("%", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[5]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[6]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim(), row[7], row[8], loaddate, row[9]?.ToString()?.Replace("$", "")?.Replace(",", "")?.Replace("-", "")?.Replace("(", "")?.Replace(")", "")?.Trim()));
-                        con2.Open();
-                        OleDbCommand cmd1 = new OleDbCommand(sqlBatch.ToString(), con2);
-                        cmd1.ExecuteNonQuery();
-                        con2.Close();
+                        if (!AreValidSheetNames(workbook))
+                        {
+                            throw new Exception("Workbook worksheet should be dkny,klp,wl,bass,am");
+                        }
+                        if (!AreHeadersValid(workbook, arrHeader.Length))
+                        {                            
+                            throw new Exception("There shoule be " + arrHeader.Length + " Columns in each spreadsheet, names should be " + string.Join(",", arrHeader));
+                        }
+
+                        if (!AreFieldsCorrect(workbook))
+                        {
+                            throw new Exception("Some values are not correct");
+                        }
+
+                        AddDataToDatatable(workbook);
+
+                        SaveDataTotable();
                     }
                 }
-
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("main", ex);
-                throw ex;
             }
         }
 
-
-
-        public System.Data.DataTable ImportExceltoDatatable(string filePath, string SheetName, bool hasHeaderFlag)
+        private void SaveDataTotable()
         {
-            try
+            string sConn = ConfigurationManager.AppSettings["connectionstring"].ToString();
+
+            OleDbConnection con2 = new OleDbConnection(sConn);
+      
+
+
+            //foreach (DataRow row in dt.Rows)
+            //{
+
+            //    }
+            //}
+            //con2.Close();
+            var destTableName = "STG_ECOM_PLAN";
+
+            foreach (DataRow row in Tabla.Rows)
             {
-                DataSet ds = new DataSet();
-
-                string constring = "";
-                string hdrOption = "Yes";
-
-                // hasHeaderFlag = true;
-                if (!hasHeaderFlag)
+                if (row["DATE"].ToString() != "" && row["DATE"] != null)
                 {
-                    hdrOption = "No";
-                }
-                string schemaFileName = Path.GetDirectoryName(filePath) + @"\Schema.ini";
-                if (File.Exists(schemaFileName))
-                {
-                    File.Delete(schemaFileName);
-                }
-                string fileExtension = Path.GetExtension(filePath);
-                switch (fileExtension.ToLower())
-                {
-                    case ".xls": //Excel 1997-2003  
-                                 // constring = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + filePath
-                                 //+ ";Extended Properties=\"Excel 8.0;HDR=" + hdrOption + ";IMEX=1\"";
-                        return ReadExcel(filePath, SheetName, hdrOption);
-                        break;
-                    case ".xlsx": //Excel 2007-2010  
-                                  // constring = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + filePath
-                                  //+ ";Extended Properties=\"Excel 12.0 xml;HDR=" + hdrOption + ";IMEX=1\"";
-                        return ReadExcel(filePath, SheetName, hdrOption);
-                        break;
-                    default:
-                        constring = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + filePath + ";Extended Properties='Excel 8.0;HDR=" + hdrOption + ";IMEX=1;'";
-                        // constring = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + filePath + ";Extended Properties='Excel 8.0;HDR=" + hdrOption + ";IMEX=1;'";
+                    StringBuilder sqlBatch = new StringBuilder();
 
-                        break;
-                }
+                    DateTime Datedt = DateTime.Parse(row["DATE"].ToString());
 
-                OleDbDataAdapter da;
-                OleDbConnection con = new OleDbConnection(constring + "");
-                con.Open();
-                System.Data.DataTable dtSchema = con.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
-                String sheetName = "";
+                    string sDAY = " TO_DATE('" + Datedt.ToString("MM/dd/yyyy") + "','MM/dd/yyyy') ";
 
-                if (fileExtension == ".csv" || fileExtension == ".txt")
-                {
+                    
+                    string sDEMAND_PLAN = row["DEMAND_PLAN"].ToString();
+                    string sSLS_RTL = row["SLS_RTL"].ToString();
 
-                    string sqlquery = "Select * from [" + Path.GetFileName(filePath) + "]";
-                    da = new OleDbDataAdapter(sqlquery, con);
-                    da.Fill(ds);
-                }
-                else
-                {
-                    //for (int i = 0; i < dtSchema.Rows.Count; i++)
-                    //{
-                    //    sheetName = dtSchema.Rows[i]["TABLE_NAME"].ToString();
-                    //    break;
-                    //}
-
-                    if (SheetName.Contains("$"))
+                    string sITEM_MRGN = "";
+                    if (row["ITEM_MRGN"]==null)
                     {
-                        string sqlquery = "Select * from [" + SheetName + "]";
-                        da = new OleDbDataAdapter(sqlquery, con);
-                        da.Fill(ds);
+                        sITEM_MRGN = "null";
                     }
                     else
                     {
-                        string sqlquery = "Select * from [" + SheetName + "$]";
-                        da = new OleDbDataAdapter(sqlquery, con);
-                        da.Fill(ds);
+                        sITEM_MRGN = "'" + row["ITEM_MRGN"].ToString() + "'";
                     }
+
+                    string sITEM_MRGN_PCT_TY = "";
+                    if (row["ITEM_MRGN_PCT_TY"] == null)
+                    {
+                        sITEM_MRGN_PCT_TY = null;
+                    }
+                    else if(row["ITEM_MRGN_PCT_TY"].ToString()=="")
+                    {
+                        sITEM_MRGN_PCT_TY = "null";
+                    }
+                       else
+                    {
+                        sITEM_MRGN_PCT_TY = "'" + row["ITEM_MRGN_PCT_TY"].ToString() + "'";
+                    }
+
+                    string sSHIPPED_ORDERS = "";
+                    if (row["SHIPPED_ORDERS"] == null)
+                    {
+                        sSHIPPED_ORDERS = "null";
+                    }
+                    else
+                    {
+                        sSHIPPED_ORDERS = "'" + row["SHIPPED_ORDERS"].ToString() + "'";
+                    }
+
+                    string sSHIPPED_UNIT_VOLUME = "";
+                    if (row["SHIPPED_UNIT_VOLUME"] == null)
+                    {
+                        sSHIPPED_UNIT_VOLUME = "null";
+                    }
+                    else
+                    {
+                        sSHIPPED_UNIT_VOLUME = "'" + row["SHIPPED_UNIT_VOLUME"].ToString() +"'";
+                    }
+                    
+                    string sLOCATION = row["LOCATION"].ToString();
+                    string sPLN_VRSN = row["PLN_VRSN"].ToString();
+
+                    DateTime loaddt = DateTime.Parse(row["LOAD_DATE"].ToString());
+
+                    
+                    string sLOAD_DATE = " TO_DATE('" + loaddt.ToString("MM/dd/yyyy") + "','DD-MMM-YY') ";
+                    string sqlStatement = "INSERT INTO " + destTableName + 
+                    " (DAY,DEMAND_PLAN,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,PLN_VRSN,LOAD_DATE) " +
+                        "VALUES ("+ sDAY + ",'" + sDEMAND_PLAN + "','" + sSLS_RTL + "'," + sITEM_MRGN + "," + sITEM_MRGN_PCT_TY + "," + sSHIPPED_ORDERS + "," + sSHIPPED_UNIT_VOLUME 
+                        + ",'" + sLOCATION + "','" + sPLN_VRSN + "'," + sLOAD_DATE + ")";
+
+                    con2.Open();
+                    OleDbCommand cmd1 = new OleDbCommand(sqlStatement, con2);
+                    cmd1.ExecuteNonQuery();
+                    con2.Close();
                 }
-
-                System.Data.DataTable dtFirstSheetData = ds.Tables[0];
-
-
-                con.Close();
-                return dtFirstSheetData;
             }
-            catch (Exception ex)
-            {
-                Logger.LogError("main", ex);
-                return null;
-            }
+          
         }
 
-
-        private System.Data.DataTable ReadExcel(string path, string SheetName, string hdrOption)
+        private bool AddDataToDatatable(IWorkbook workbook)
         {
-            List<string> list = new List<string>();
-            list.Add("DAY");
-            list.Add("DEMAND_PLAN");
-            list.Add("SLS_RTL");
-            list.Add("ITEM_MRGN");
-            list.Add("ITEM_MRGN_PCT_TY");
-            list.Add("SHIPPED_ORDERS");
-            list.Add("SHIPPED_UNIT_VOLUME");
-            list.Add("LOCATION");
-            list.Add("PLN_VRSN");
-            list.Add("NET_AUR_PLAN");
-            String[] str = list.ToArray();
+            ISheet worksheet = null;
+            for (int fileIndex = 0; fileIndex < workbook.NumberOfSheets; fileIndex++)
+            {
+                if (!workbook.IsSheetHidden(fileIndex))
+                {
+                    worksheet = workbook.GetSheetAt(fileIndex);
 
-            //Instance reference for Excel Application
-            Microsoft.Office.Interop.Excel.Application objXL = null;
-            //Workbook refrence
-            Microsoft.Office.Interop.Excel.Workbook objWB = null;
-            DataSet ds = new DataSet();
+                    DataRow NewReg = null;
+                    int rowindex = 1;
+                    IRow row = worksheet.GetRow(rowindex);//skip header
+
+                    while (row != null)
+                    {
+                        DataRow rw= Tabla.NewRow();
+                        string sDate = "";
+                        var d = row.GetCell(0);
+                        if (d.CellType == CellType.Numeric)
+                        {
+                            //sDate = d.DateCellValue.ToString("MM/dd/yyyy");
+
+                            rw["DATE"] = d.DateCellValue;
+                        }
+
+                          
+
+                        var demand = row.GetCell(1);
+                        if (demand != null)
+                        {
+                            rw["DEMAND_PLAN"] = demand.NumericCellValue;
+                        }
+                        else 
+                        {
+                            rw["DEMAND_PLAN"] = null;
+                        }
+
+
+                        var sls = row.GetCell(2);
+                        if (sls != null)
+                        {
+                          
+                            rw["SLS_RTL"] = sls.NumericCellValue;
+                        }
+                        else
+                        {
+                            rw["SLS_RTL"] = null;
+                        }
+
+                        var itmmrgn = row.GetCell(3);
+                        if (itmmrgn != null)
+                        {
+                            
+                            rw["ITEM_MRGN"] = itmmrgn.NumericCellValue;
+                        }
+                        //else
+                        //{
+                        //    rw["ITEM_MRGN"] = null;
+                        //}
+
+                        var itmmrgnpct = row.GetCell(4);
+                        if (itmmrgnpct != null)
+                        {
+                           
+                            rw["ITEM_MRGN_PCT_TY"] = itmmrgnpct.NumericCellValue;
+                        }
+                        //else
+                        //{
+                        //    rw["ITEM_MRGN_PCT_TY"] = null;
+                        //}
+
+
+                        var ordshp = row.GetCell(5);
+                        if (ordshp != null)
+                        {
+                            rw["SHIPPED_ORDERS"] = ordshp.NumericCellValue;
+                        }
+                        //else
+                        //{
+                        //    rw["SHIPPED_ORDERS"] = null;
+                        //}
+
+                        var shpvol = row.GetCell(6);
+                        if (shpvol != null)
+                        {
+                            
+                            rw["SHIPPED_UNIT_VOLUME"] = shpvol.NumericCellValue;
+                        }
+                        //else
+                        //{
+                        //    rw["SHIPPED_UNIT_VOLUME"] = null;
+                        //}
+
+                        var plnver = row.GetCell(7);
+                        if (plnver != null)
+                        {                            
+                            rw["PLN_VRSN"] = plnver.StringCellValue + "_ECDMD";
+                        }
+                        else
+                        {
+                            throw new Exception("unknown version");
+                        }
+
+                        if (worksheet.SheetName.ToLower().Trim() == "dkny")
+                            rw["LOCATION"] = "DKNY Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "klp")
+                            rw["LOCATION"] = "Karl Lagerfeld Paris Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "wl")
+                            rw["LOCATION"] = "Wilsons Leather Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "bass")
+                            rw["LOCATION"] = "GH Bass Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "am")
+                            rw["LOCATION"] = "Andrew Marc Ecommerce";
+                        else
+                            throw new Exception("unknown tab");
+                        
+                        rw["LOAD_DATE"] = DateTime.Now.ToString("MM/dd/yyyy");
+                        
+                        
+
+                        
+                        Tabla.Rows.Add(rw);
+                        row = worksheet.GetRow(++rowindex);
+                    }
+
+
+
+
+                }
+            }
+
+            return true;
+        }
+
+        private bool AreFieldsCorrect(IWorkbook workbook)
+        {
+            ISheet worksheet = null;
+            for (int fileIndex = 0; fileIndex < workbook.NumberOfSheets; fileIndex++)
+            {
+                if (!workbook.IsSheetHidden(fileIndex))
+                {
+                    worksheet = workbook.GetSheetAt(fileIndex);
+
+                    DataRow NewReg = null;
+                    int rowindex = 1;
+                    IRow row = worksheet.GetRow( rowindex );//skip header
+
+                    while (row != null)
+                    {
+
+                        string sDate = "";
+                        var d = row.GetCell(0);
+                        if (d.CellType== CellType.Numeric)
+                        {
+                            if (d.DateCellValue.ToString()!="")
+                            sDate = d.DateCellValue.ToString("MM/dd/yyyy");
+                        }
+
+                        
+
+                        if (!IsDateValue(sDate))
+                            return false;
+
+
+                        for (int j = 1; j < arrHeader.Length - 2; j++)
+                        {
+                            var v = row.GetCell(j);
+                            if (v != null)//nulls are allowe for cells, weekends will not have sale or shipped value
+                            {
+                                if (v.CellType == CellType.Formula || v.CellType == CellType.Numeric)
+                                    if (!IsNumericValue(v.NumericCellValue.ToString()))
+                                        return false;
+                            }
+                        }
+
+
+                        if (!IsDateValue(sDate))
+                            return false;
+
+
+                        var c = row.GetCell(arrHeader.Length-1);
+                        string sVersion = c.StringCellValue;
+
+                        if (!IsValidVersion(sVersion))
+                            return false;
+
+                        row = worksheet.GetRow(++rowindex);
+                    }                       
+                    
+                    
+
+
+                }
+            }
+
+            return true;
+        }
+
+        private bool IsNumericValue(string v)
+        {
+            if (v.Trim() == "")
+                return false;
+
+            double test;
+            return double.TryParse(v, out test);
+
+           
+
+
+            return false;
+        }
+
+        private bool IsDateValue(string sDate)
+        {
+            DateTime dt;
+            if (sDate.Trim() == "")
+                return false;
+
+            if (!DateTime.TryParse(sDate,out dt))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsValidVersion(string sVersion)
+        {
+            string tVer = sVersion.ToUpper().Trim();
+            if (!(tVer=="LE01" || tVer == "LE02" || tVer == "LE03" || tVer == "LE04" || tVer == "LE05" || tVer == "LE06" || tVer == "LE07" || tVer == "LE08" 
+                || tVer == "LE09" || tVer == "LE10" || tVer == "LE11" || tVer == "LE12" || tVer == "PLAN"))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private bool EmptyRow(IRow row)
+        {            
+
+            for (int i = 0; i < arrHeader.Length; i++)
+            {
+                if (row.GetCell(i).StringCellValue.Trim().Length == 0)
+                    return false;
+            }
+            return true;
+        }
+
+        private bool AreValidSheetNames(IWorkbook workbook)
+        {
+            ISheet worksheet = null;
+            for (int fileIndex = 0; fileIndex < workbook.NumberOfSheets; fileIndex++)
+            {
+                if (!workbook.IsSheetHidden(fileIndex))
+                {
+                    if (!IsValidSheetName(fileIndex, workbook.GetSheetAt(fileIndex).SheetName))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool IsValidSheetName(int fileIndex, string sheetName)
+        {
+
+            foreach(string sname in arrSheetName)
+            {
+                if (sname.ToLower().Trim()==sheetName.ToLower().Trim())
+                {
+                    return true;
+                }
+            }
+           
+
+            return false;
+        }
+
+        private bool AreHeadersValid(IWorkbook workbook,int maxColCount )
+        {
+            ISheet worksheet = null;
+            for (int fileIndex = 0; fileIndex < workbook.NumberOfSheets; fileIndex++)
+            {
+                if (!workbook.IsSheetHidden(fileIndex))
+                {
+                    worksheet = workbook.GetSheetAt(fileIndex);
+
+                    DataRow NewReg = null;
+                    IRow row = worksheet.GetRow(0);
+                    if (row != null) //null is when the row only contains empty cells 
+                    {
+
+                        for (int colNum = 0; colNum < maxColCount; colNum++)
+                        {
+                            var c = row.GetCell(colNum);
+                            string sheader = c.StringCellValue;
+
+                            if (!CheckHeaderColumn(colNum, sheader))
+                                return false;
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("Header not found in worksheet" + worksheet.SheetName);
+                        // return null;
+                    }
+
+                }
+            }
+
+            return true;
+        }
+
+        private bool CheckHeaderColumn(int i, string header)
+        {
+            if (arrHeader[i] == header.ToLower().Trim())
+                return true;
+
+            return false;
+        }
+        private DataTable Excel_To_DataTable1(string Excelfilename)
+        {            
+            DataTable Tabla = null;
             try
             {
-                DataTable dt = new DataTable();
-                //Instancing Excel using COM services
-                objXL = new Microsoft.Office.Interop.Excel.Application();
-                //Adding WorkBook
-                objWB = objXL.Workbooks.Open(path);
-                if (objWB.Worksheets.Count > 0)
+                if (System.IO.File.Exists(Excelfilename))
                 {
 
-                    foreach (Microsoft.Office.Interop.Excel.Worksheet objSHT in objWB.Worksheets)
+                    IWorkbook workbook = null;  
+                    ISheet worksheet = null;
+                    string first_sheet_name = "";
+                    
+                    first_sheet_name = "MyTable";
+                    Tabla = new DataTable(first_sheet_name);
+                    Tabla.Rows.Clear();
+                    Tabla.Columns.Clear();
+
+                    using (FileStream FS = new FileStream(Excelfilename, FileMode.Open, FileAccess.Read))
                     {
-                        if (objSHT.Name == SheetName)
+                        workbook = WorkbookFactory.Create(FS);
+
+                        for (int fileIndex = 0; fileIndex < workbook.NumberOfSheets; fileIndex++)
                         {
-                            int rows = objSHT.UsedRange.Rows.Count;
-                            int cols = objSHT.UsedRange.Columns.Count;
-
-                            int noofrow = 1;
-                            //If 1st Row Contains unique Headers for datatable include this part else remove it
-                            //Start
-                            for (int c = 1; c <= cols; c++)
+                            if (!workbook.IsSheetHidden(fileIndex))
                             {
-                                if (hdrOption == "Yes")
-                                {
-                                    string colname = objSHT.Cells[1, c].Text;
-                                    dt.Columns.Add(str[c - 1]);
-                                    noofrow = 2;
-                                }
-                                else
-                                {
-                                    dt.Columns.Add("F" + (c));
-                                    noofrow = 1;
-                                }
 
-                            }
-                            //END
-                            for (int r = noofrow; r <= rows; r++)
-                            {
-                                DataRow dr = dt.NewRow();
-                                for (int c = 1; c <= cols; c++)
+                                worksheet = workbook.GetSheetAt(fileIndex);                       
+
+
+                                for (int rowIndex = 0; rowIndex <= worksheet.LastRowNum; rowIndex++)
                                 {
-                                    if (objSHT.Cells[r, c].Text.ToString().Contains("#"))
+                                    DataRow NewReg = null;
+                                    IRow row = worksheet.GetRow(rowIndex);
+                                    IRow row2 = null;
+                                    IRow row3 = null;
+
+                                    if (rowIndex == 0)
                                     {
-                                        var abc = objSHT.Cells[r, c].Value;
-                                        // double val = double.Parse(objSHT.Cells[r, c].Value.ToString());
-                                        // DateTime requiredDate = DateTime.FromOADate(val);
-                                        dr[c - 1] = abc;
+                                        row2 = worksheet.GetRow(rowIndex + 1);
+                                        row3 = worksheet.GetRow(rowIndex + 2);
                                     }
-                                    else
+
+                                    if (row != null) //null is when the row only contains empty cells 
                                     {
-                                        dr[c - 1] = objSHT.Cells[r, c].Text;
+                                        if (rowIndex > 0)
+                                        {
+                                            NewReg = Tabla.NewRow();
+                                        }
+                                        int colIndex = 0;
+
+                                        foreach (ICell cell in row.Cells)
+                                        {
+                                            object valorCell = null;
+                                            string cellType = "";
+                                            string[] cellType2 = new string[2];
+
+                                            if (rowIndex == 0)
+                                            {
+                                                for (int i = 0; i < 2; i++)
+                                                {
+                                                    ICell cell2 = null;
+                                                    if (i == 0) 
+                                                    { 
+                                                        cell2 = row2.GetCell(cell.ColumnIndex); 
+                                                    }
+                                                    else 
+                                                    { 
+                                                        cell2 = row3.GetCell(cell.ColumnIndex); 
+                                                    }
+
+                                                    if (cell2 != null)
+                                                    {
+                                                        switch (cell2.CellType)
+                                                        {
+                                                            case CellType.Blank: break;
+                                                            case CellType.Boolean: cellType2[i] = "System.Boolean"; break;
+                                                            case CellType.String: cellType2[i] = "System.String"; break;
+                                                            case CellType.Numeric:
+                                                                if (HSSFDateUtil.IsCellDateFormatted(cell2)) { cellType2[i] = "System.DateTime"; }
+                                                                else
+                                                                {
+                                                                    cellType2[i] = "System.Double";
+                                                                }
+                                                                break;
+
+                                                            case CellType.Formula:
+                                                                bool continuar = true;
+                                                                switch (cell2.CachedFormulaResultType)
+                                                                {
+                                                                    case CellType.Boolean: cellType2[i] = "System.Boolean"; break;
+                                                                    case CellType.String: cellType2[i] = "System.String"; break;
+                                                                    case CellType.Numeric:
+                                                                        if (HSSFDateUtil.IsCellDateFormatted(cell2)) { cellType2[i] = "System.DateTime"; }
+                                                                        else
+                                                                        {
+                                                                            try
+                                                                            {
+                                                                                //DETERMINAR SI ES BOOLEANO
+                                                                                if (cell2.CellFormula == "TRUE()") { cellType2[i] = "System.Boolean"; continuar = false; }
+                                                                                if (continuar && cell2.CellFormula == "FALSE()") { cellType2[i] = "System.Boolean"; continuar = false; }
+                                                                                if (continuar) { cellType2[i] = "System.Double"; continuar = false; }
+                                                                            }
+                                                                            catch { }
+                                                                        }
+                                                                        break;
+                                                                }
+                                                                break;
+                                                            default:
+                                                                cellType2[i] = "System.String"; break;
+                                                        }
+                                                    }
+                                                }
+
+                                                if (cellType2[0] == cellType2[1]) 
+                                                { 
+                                                    cellType = cellType2[0]; 
+                                                }
+                                                else
+                                                {
+                                                    if (cellType2[0] == null) cellType = cellType2[1];
+                                                    if (cellType2[1] == null) cellType = cellType2[0];
+                                                    if (cellType == "") cellType = "System.String";
+                                                }
+
+                                                string colName = "Column_{0}";
+                                                try 
+                                                { 
+                                                    colName = cell.StringCellValue; 
+                                                }
+                                                catch 
+                                                { 
+                                                    colName = string.Format(colName, colIndex); 
+                                                }
+
+                                                foreach (DataColumn col in Tabla.Columns)
+                                                {
+                                                    if (col.ColumnName == colName) colName = string.Format("{0}_{1}", colName, colIndex);
+                                                }
+
+
+                                                DataColumn codigo = new DataColumn(colName, System.Type.GetType(cellType));
+                                                Tabla.Columns.Add(codigo); 
+                                                colIndex++;
+                                            }
+                                            else
+                                            {
+                                                switch (cell.CellType)
+                                                {
+                                                    case CellType.Blank: valorCell = DBNull.Value; break;
+                                                    case CellType.Boolean: valorCell = cell.BooleanCellValue; break;
+                                                    case CellType.String: valorCell = cell.StringCellValue; break;
+                                                    case CellType.Numeric:
+                                                        if (HSSFDateUtil.IsCellDateFormatted(cell)) { valorCell = cell.DateCellValue; }
+                                                        else { valorCell = cell.NumericCellValue; }
+                                                        break;
+                                                    case CellType.Formula:
+                                                        switch (cell.CachedFormulaResultType)
+                                                        {
+                                                            case CellType.Blank: valorCell = DBNull.Value; break;
+                                                            case CellType.String: valorCell = cell.StringCellValue; break;
+                                                            case CellType.Boolean: valorCell = cell.BooleanCellValue; break;
+                                                            case CellType.Numeric:
+                                                                if (HSSFDateUtil.IsCellDateFormatted(cell)) { valorCell = cell.DateCellValue; }
+                                                                else { valorCell = cell.NumericCellValue; }
+                                                                break;
+                                                        }
+                                                        break;
+                                                    default: valorCell = cell.StringCellValue; break;
+                                                }
+                                                if (cell.ColumnIndex <= Tabla.Columns.Count - 1) NewReg[cell.ColumnIndex] = valorCell;
+                                            }
+                                        }
                                     }
+                                    if (rowIndex > 0) Tabla.Rows.Add(NewReg);
                                 }
-                                dt.Rows.Add(dr);
                             }
-                            Marshal.ReleaseComObject(objSHT);
-                            break;
+                            Tabla.AcceptChanges();
                         }
                     }
                 }
-                //cleanup
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-
-                //Closing workbook
-                objWB.Close();
-                Marshal.ReleaseComObject(objWB);
-                //Closing excel application
-                objXL.Quit();
-                Marshal.ReleaseComObject(objXL);
-                return dt;
+                else
+                {
+                    throw new Exception("ERROR 404");
+                }
             }
-
             catch (Exception ex)
             {
-                objWB.Saved = true;
-                //Closing work book
-                objWB.Close();
-                //Closing excel application
-                objXL.Quit();
-                //Response.Write("Illegal permission");
-                return null;
+                throw ex;
             }
-
+            return Tabla;
         }
 
     }
