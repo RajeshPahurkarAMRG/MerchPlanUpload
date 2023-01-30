@@ -1,7 +1,11 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\LoadMerchantPlanData",
+    "\\LoadMerchantPlanData\\DB Script",
+    "\\PlanLEFileCheck",
+    "\\PlanLEFileLoadHelper"
   ],
-  "SelectedNode": "\\LoadMerchantPlanData.sln",
+  "SelectedNode": "\\LoadMerchantPlanData\\Program.cs",
   "PreviewInSolutionExplorer": false
 }

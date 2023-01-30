@@ -1,0 +1,26 @@
+{
+  "Version": 1,
+  "ProjectMap": {
+    "cd82ff27-5c8f-4765-a550-521de83cb676": {
+      "ProjectGuid": "cd82ff27-5c8f-4765-a550-521de83cb676",
+      "DisplayName": "LoadMerchantPlanData",
+      "ColorIndex": 0
+    },
+    "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3": {
+      "ProjectGuid": "a2fe74e1-b743-11d0-ae1a-00a0c90fffc3",
+      "DisplayName": "Miscellaneous Files",
+      "ColorIndex": -1
+    },
+    "21dc7a9b-5b76-4d6c-b30e-293e1bfe5fe0": {
+      "ProjectGuid": "21dc7a9b-5b76-4d6c-b30e-293e1bfe5fe0",
+      "DisplayName": "PlanLEFileLoadHelper",
+      "ColorIndex": 1
+    },
+    "9f854c19-0dd0-4a36-ad2c-898770788ccf": {
+      "ProjectGuid": "9f854c19-0dd0-4a36-ad2c-898770788ccf",
+      "DisplayName": "PlanLEFileCheck",
+      "ColorIndex": 2
+    }
+  },
+  "NextColorIndex": 3
+}
