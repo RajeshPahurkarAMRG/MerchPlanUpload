@@ -28,7 +28,7 @@ namespace LoadPlanDataBatch
             }
 
             DirectoryInfo d = new DirectoryInfo(folderpath);
-            FileInfo[] allFiles = d.GetFiles(folderpath);
+            FileInfo[] allFiles = d.GetFiles();
 
             if (allFiles.Length == 0)
             {
@@ -77,7 +77,7 @@ namespace LoadPlanDataBatch
 
         private static void JobStarted()
         {
-            Logger.LogStart();
+            //Logger.LogStart();
             SendSMTPMail sendSMTPMail = new SendSMTPMail();
             sendSMTPMail.Dosend(sTo, "Job Started", "Started :LoadMerchantPlanData Job");
         }

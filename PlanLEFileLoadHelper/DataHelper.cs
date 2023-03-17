@@ -13,8 +13,14 @@ namespace PlanLEFileLoadHelper
 {
     public static class DataHelper
     {
+        //Logs are written to Sql server
         static string connetionString = ConfigurationManager.ConnectionStrings["AMRGConnection"].ToString();
-        static string sConnStr = ConfigurationManager.AppSettings["connectionstring"].ToString();
+
+        //For updating Stage table in local schema
+        static string sConnStr = ConfigurationManager.ConnectionStrings["BOAIM"].ToString();
+
+        //For updating BOAIM database
+        static string sConnStrAdm = ConfigurationManager.ConnectionStrings["BOAIMADM"].ToString();
 
         public static void ExecNonQuery(string sql)
         {
@@ -28,10 +34,19 @@ namespace PlanLEFileLoadHelper
         {
             OleDbConnection con2 = new OleDbConnection(sConnStr);
             con2.Open();
-            OleDbCommand com = new OleDbCommand("truncate table stg_ecom_plan", con2);
+            OleDbCommand com = new OleDbCommand(sql, con2);
             com.ExecuteNonQuery();
             con2.Close();
         }
+        public static void ExecNonQueryOLEDBAdmin(string sql)
+        {
+            OleDbConnection con2 = new OleDbConnection(sConnStrAdm);
+            con2.Open();
+            OleDbCommand com = new OleDbCommand(sql, con2);
+            com.ExecuteNonQuery();
+            con2.Close();
+        }
+
         internal static SqlDataReader GetDataReader(string sql)
         {
             SqlConnection con = new SqlConnection(connetionString);
@@ -64,34 +79,34 @@ namespace PlanLEFileLoadHelper
             return DataHelper.ExecuteScalar(sql);
         }
 
-        public static void BulkInsertDataDataTable(string sqlTableName, DataTable dataTable)
-        {
-            using (SqlConnection connection = new SqlConnection(connetionString))
-            {
-                SqlBulkCopy bulkCopy =
-                    new SqlBulkCopy
-                    (
-                    connection,
-                    SqlBulkCopyOptions.TableLock |
-                    SqlBulkCopyOptions.FireTriggers |
-                    SqlBulkCopyOptions.UseInternalTransaction,
-                    null
-                    );
+        //public static void BulkInsertDataDataTable(string sqlTableName, DataTable dataTable)
+        //{
+        //    using (SqlConnection connection = new SqlConnection(connetionString))
+        //    {
+        //        SqlBulkCopy bulkCopy =
+        //            new SqlBulkCopy
+        //            (
+        //            connection,
+        //            SqlBulkCopyOptions.TableLock |
+        //            SqlBulkCopyOptions.FireTriggers |
+        //            SqlBulkCopyOptions.UseInternalTransaction,
+        //            null
+        //            );
 
-                bulkCopy.DestinationTableName = "[" + sqlTableName + "]";
-                connection.Open();
-                //for truncate previous data
-                SqlCommand cmd = new SqlCommand();
-                cmd.CommandType = CommandType.Text;
-                cmd.CommandText = " truncate table [" + sqlTableName + "]";
-                cmd.Connection = connection;
-                cmd.ExecuteNonQuery();
+        //        bulkCopy.DestinationTableName = "[" + sqlTableName + "]";
+        //        connection.Open();
+        //        //for truncate previous data
+        //        SqlCommand cmd = new SqlCommand();
+        //        cmd.CommandType = CommandType.Text;
+        //        cmd.CommandText = " truncate table [" + sqlTableName + "]";
+        //        cmd.Connection = connection;
+        //        cmd.ExecuteNonQuery();
 
-                bulkCopy.BatchSize = 10000;
-                bulkCopy.BulkCopyTimeout = 0;
-                bulkCopy.WriteToServer(dataTable);
-                connection.Close();
-            }
-        }
+        //        bulkCopy.BatchSize = 10000;
+        //        bulkCopy.BulkCopyTimeout = 0;
+        //        bulkCopy.WriteToServer(dataTable);
+        //        connection.Close();
+        //    }
+        //}
     }
 }

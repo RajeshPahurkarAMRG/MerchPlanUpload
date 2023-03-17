@@ -19,6 +19,8 @@ namespace PlanLEFileLoadHelper
         SendSMTPMail mail = new SendSMTPMail();
         
         const string sFilePattern = "Ecom Daily Plan*.xlsx";
+        const string DOT = ".";
+        const string SCHEMA = "urxp00";
 
         private ILog log ;
 
@@ -49,7 +51,6 @@ namespace PlanLEFileLoadHelper
             tblEcomStg.Columns.Add(new DataColumn("PLN_VRSN", typeof(String)));
             tblEcomStg.Columns.Add(new DataColumn("LOCATION", typeof(string)));
             tblEcomStg.Columns.Add(new DataColumn("LOAD_DATE", typeof(DateTime)));
-
         }
 
         public bool Validate(string Excelfilename, int minRowCount)
@@ -57,9 +58,7 @@ namespace PlanLEFileLoadHelper
            
                 IWorkbook workbook = null;
                 ISheet worksheet = null;
-                string first_sheet_name = "";
-
-                using (FileStream FS = new FileStream(Excelfilename, FileMode.Open, FileAccess.Read))
+            using (FileStream FS = new FileStream(Excelfilename, FileMode.Open, FileAccess.Read))
                 {
                     workbook = WorkbookFactory.Create(FS);
                     {
@@ -85,8 +84,8 @@ namespace PlanLEFileLoadHelper
 
                 Logger.LogInsert("Truncating Stage Table");
 
-                string sDelete = "TRUNCATE TABLE STG_ECOM_PLAN";
-                DataHelper.ExecNonQuery(sDelete);
+                string sDelete = "TRUNCATE TABLE " + SCHEMA + DOT + "STG_ECOM_PLAN";
+                DataHelper.ExecNonQueryOLEDB(sDelete);
 
                 Logger.LogInsert("Started loading file");
 
@@ -132,14 +131,14 @@ namespace PlanLEFileLoadHelper
 
         private void CopyStageTableToMainTable(string sLoadDate)
         {
-            string sDelCommand = "Delete from AIMDB.ecom_plan where PLN_VRSN in (select top 1 PLN_VRSN FROM STG_ECOM_PLAN)";
+            string sDelCommand = "Delete from AIMDB.ecom_plan where PLN_VRSN in (select PLN_VRSN FROM " + SCHEMA + DOT + ".STG_ECOM_PLAN where rownum <2)";
             DataHelper.ExecNonQueryOLEDB(sDelCommand);
 
             string sCommand = "Insert into AIMDB.ecom_plan(PLN_VRSN, DAY, SLS_RTL, ITEM_MRGN, ITEM_MRGN_PCT_TY, DEMAND_PLAN" +
                     ", SHIPPED_ORDERS, SHIPPED_UNIT_VOLUME, LOCATION) " +
                     " select PLN_VRSN, DAY,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,DEMAND_PLAN,SHIPPED_ORDERS" +
                     ",SHIPPED_UNIT_VOLUME,LOCATION " +
-                    " FROM STG_ECOM_PLAN stg where stg.LOAD_DATE = to_date('" + sLoadDate + "', 'MM/DD/YYYY')";
+                    " FROM " + SCHEMA + DOT + "STG_ECOM_PLAN stg where stg.LOAD_DATE = to_date('" + sLoadDate + "', 'MM/DD/YYYY')";
 
             DataHelper.ExecNonQueryOLEDB(sCommand);
 
@@ -160,9 +159,7 @@ namespace PlanLEFileLoadHelper
                 using (FileStream FS = new FileStream(Excelfilename, FileMode.Open, FileAccess.Read))
                 {
                     workbook = WorkbookFactory.Create(FS);
-
-                    {
-                        
+                    {                        
 
                         AddDataToDatatable(workbook);
 
@@ -262,7 +259,7 @@ namespace PlanLEFileLoadHelper
                     DateTime loaddt = DateTime.Parse(row["LOAD_DATE"].ToString());
 
 
-                    string sLOAD_DATE = " TO_DATE('" + loaddt.ToString("MM/dd/yyyy") + "','DD-MMM-YY') ";
+                    string sLOAD_DATE = " TO_DATE('" + loaddt.ToString("MM/dd/yyyy") + "','MM/dd/yyyy') ";
                     string sqlStatement = "INSERT INTO " + destTableName +
                     " (DAY,DEMAND_PLAN,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,SHIPPED_ORDERS,SHIPPED_UNIT_VOLUME,LOCATION,PLN_VRSN,LOAD_DATE) " +
                         "VALUES (" + sDAY + ",'" + sDEMAND_PLAN + "','" + sSLS_RTL + "'," + sITEM_MRGN + "," + sITEM_MRGN_PCT_TY + "," + sSHIPPED_ORDERS + "," + sSHIPPED_UNIT_VOLUME

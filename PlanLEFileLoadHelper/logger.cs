@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace PlanLEFileLoadHelper
 {
-    public class Logger
+    public static class Logger
     {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
