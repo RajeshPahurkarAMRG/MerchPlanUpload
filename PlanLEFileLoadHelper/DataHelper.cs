@@ -17,7 +17,7 @@ namespace PlanLEFileLoadHelper
         static string connetionString = ConfigurationManager.ConnectionStrings["AMRGConnection"].ToString();
 
         //For updating Stage table in local schema
-        static string sConnStr = ConfigurationManager.ConnectionStrings["BOAIM"].ToString();
+        //static string sConnStr = ConfigurationManager.ConnectionStrings["BOAIM"].ToString();
 
         //For updating BOAIM database
         static string sConnStrAdm = ConfigurationManager.ConnectionStrings["BOAIMADM"].ToString();
@@ -32,7 +32,7 @@ namespace PlanLEFileLoadHelper
         }
         public static void ExecNonQueryOLEDB(string sql)
         {
-            OleDbConnection con2 = new OleDbConnection(sConnStr);
+            OleDbConnection con2 = new OleDbConnection(sConnStrAdm);
             con2.Open();
             OleDbCommand com = new OleDbCommand(sql, con2);
             com.ExecuteNonQuery();

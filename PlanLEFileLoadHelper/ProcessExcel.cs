@@ -20,7 +20,7 @@ namespace PlanLEFileLoadHelper
         
         const string sFilePattern = "Ecom Daily Plan*.xlsx";
         const string DOT = ".";
-        const string SCHEMA = "urxp00";
+        const string SCHEMA = "AIMDB";
 
         private ILog log ;
 
@@ -131,14 +131,14 @@ namespace PlanLEFileLoadHelper
 
         private void CopyStageTableToMainTable(string sLoadDate)
         {
-            string sDelCommand = "Delete from AIMDB.ecom_plan where PLN_VRSN in (select PLN_VRSN FROM " + SCHEMA + DOT + ".STG_ECOM_PLAN where rownum <2)";
+            string sDelCommand = "Delete from AIMDB.ECOM_PLAN where PLN_VRSN in (select PLN_VRSN FROM STG_ECOM_PLAN where rownum <2)";
             DataHelper.ExecNonQueryOLEDB(sDelCommand);
 
             string sCommand = "Insert into AIMDB.ecom_plan(PLN_VRSN, DAY, SLS_RTL, ITEM_MRGN, ITEM_MRGN_PCT_TY, DEMAND_PLAN" +
                     ", SHIPPED_ORDERS, SHIPPED_UNIT_VOLUME, LOCATION) " +
                     " select PLN_VRSN, DAY,SLS_RTL,ITEM_MRGN,ITEM_MRGN_PCT_TY,DEMAND_PLAN,SHIPPED_ORDERS" +
                     ",SHIPPED_UNIT_VOLUME,LOCATION " +
-                    " FROM " + SCHEMA + DOT + "STG_ECOM_PLAN stg where stg.LOAD_DATE = to_date('" + sLoadDate + "', 'MM/DD/YYYY')";
+                    " FROM " +  "STG_ECOM_PLAN stg where stg.LOAD_DATE = to_date('" + sLoadDate + "', 'MM/DD/YYYY')";
 
             DataHelper.ExecNonQueryOLEDB(sCommand);
 
@@ -188,7 +188,7 @@ namespace PlanLEFileLoadHelper
 
         private void SaveDataTotable()
         {
-            string sConn = ConfigurationManager.AppSettings["connectionstring"].ToString();
+            //string sConn = ConfigurationManager.AppSettings["connectionstring"].ToString();
 
             
 

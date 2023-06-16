@@ -2,7 +2,6 @@ C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\bin\Debug\PlanLEFil
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\bin\Debug\PlanLEFileCheck.exe
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\bin\Debug\PlanLEFileCheck.pdb
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\obj\Debug\PlanLEFileCheck.csproj.AssemblyReference.cache
-C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\obj\Debug\PlanLEFileCheck.csproj.SuggestedBindingRedirects.cache
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\obj\Debug\PlanLEFileCheck.Form1.resources
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\obj\Debug\PlanLEFileCheck.Properties.Resources.resources
 C:\Users\urxp00\Source\Repos\MerchPlanUpload\PlanLEFileCheck\obj\Debug\PlanLEFileCheck.csproj.GenerateResource.cache
