@@ -25,7 +25,7 @@ namespace PlanLEFileLoadHelper
         private ILog log ;
 
         string[] arrHeader = { "date", "demand plan", "net sales plan", "item margin $ plan", "item margin % plan", "orders shipped", "units shipped", "version" };
-        string[] arrSheetName = { "dkny", "klp", "wl", "bass", "am" };
+        string[] arrSheetName = { "dkny", "klp", "wl", "bass", "dk","starter" };
 
         public string HeaderString
         {
@@ -383,8 +383,10 @@ namespace PlanLEFileLoadHelper
                             rw["LOCATION"] = "Wilsons Leather Ecommerce";
                         else if (worksheet.SheetName.ToLower().Trim() == "bass")
                             rw["LOCATION"] = "GH Bass Ecommerce";
-                        else if (worksheet.SheetName.ToLower().Trim() == "am")
-                            rw["LOCATION"] = "Andrew Marc Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "dk")
+                            rw["LOCATION"] = "Donna Karan Ecommerce";
+                        else if (worksheet.SheetName.ToLower().Trim() == "starter")
+                            rw["LOCATION"] = "Starter Ecommerce";
                         else
                             throw new Exception("unknown tab");
 
